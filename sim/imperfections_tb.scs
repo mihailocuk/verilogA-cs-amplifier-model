@@ -1,0 +1,12 @@
+simulator lang=spectre
+include "../src/cs_amplifier.va"
+
+// Imperfections testbench: offset, temp and process variation
+v1 (in 0) sin(0 0.1 1k)
+
+// Simulate a slow temperature ramp by setting Temp parameter manually per run (scripts handle sweep)
+xu1 (in out 0) cs_amplifier params: A=10 Rin=1e6 Rout=1e3 Voffset=0.01 Temp=320 TempCoeff=0.01 delta_A=0.05
+
+tran tran1 1u 2m
+save tran1 v(out) v(in)
+run tran1

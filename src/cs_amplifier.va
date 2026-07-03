@@ -1,0 +1,106 @@
+// Verilog-A: Behavioral common-source amplifier (multi-layered)
+`timescale 1ns/1ps
+
+module cs_amplifier(in, out, ref);
+    inout in, out, ref;
+    electrical in, out, ref, vo, vo2;
+
+    // Linear core
+    parameter real A = 10.0 from [0:inf);    // nominal gain
+    parameter real Rin = 1e9 from (0:inf);   // input resistance (Ohm)
+    parameter real Rout = 1e3 from (0:inf);  // output series resistance (Ohm)
+
+    // Dynamics
+    parameter integer enable_pole = 1;       // 0/1 enable dominant pole
+    parameter real Cp = 1e-12 from [0:inf);  // internal capacitance for dominant pole (F)
+    parameter integer enable_2poles = 0;     // add second pole stage
+    parameter real C2 = 1e-12 from [0:inf);  // capacitance for second pole
+    parameter real SR = 1e9 from [0:inf);    // slew-rate limit (V/s). Large default = no limit
+
+    // Nonlinear / saturation
+    parameter integer enable_tanh = 1;       // use smooth tanh saturation
+    parameter real Vdd = 1.8;                // positive rail
+    parameter real Vss = 0.0;                // negative rail/reference
+    parameter real vscale = 0.1;             // scale for tanh saturation (V)
+
+    // Imperfections
+    parameter real Voffset = 0.0;            // input offset (V)
+    parameter real Temp = 300.0;             // operating temperature (K)
+    parameter real TempCoeff = 0.0;          // fractional change per (T-300)/300
+    parameter real delta_A = 0.0;            // process variation for gain (fraction)
+    parameter real delta_Rin = 0.0;         // process variation fraction for Rin
+    parameter real delta_Rout = 0.0;        // process variation fraction for Rout
+
+    // AMS realism (power/bias hooks)
+    parameter real Ibias = 1e-6;             // bias current (A)
+    parameter integer enable_noise = 0;      // placeholder to enable noise sources
+
+    analog begin
+        // Effective input (apply offset)
+        real vin;
+        vin = V(in, ref) - Voffset;
+
+        // Apply temperature and process scaling to gain and resistances
+        real Aeff, Rin_eff, Rout_eff;
+        Aeff = A * (1.0 + TempCoeff * (Temp - 300.0) / 300.0) * (1.0 + delta_A);
+        Rin_eff = Rin * (1.0 + delta_Rin);
+        Rout_eff = Rout * (1.0 + delta_Rout);
+
+        // Input loading
+        I(in, ref) <+ V(in, ref) / Rin_eff;
+
+        // Ideal internal voltage before dynamics/nonlinearities
+        real v_ideal;
+        v_ideal = Aeff * vin;
+
+        // Apply smooth saturation (tanh) if enabled
+        real v_int;
+        if (enable_tanh != 0) begin
+            // center between rails and scaled tanh to give smooth clipping
+            real rail_mid, rail_amp;
+            rail_mid = 0.5 * (Vdd + Vss);
+            rail_amp = 0.5 * (Vdd - Vss);
+            v_int = rail_mid + rail_amp * tanh(v_ideal / vscale);
+        end else begin
+            v_int = v_ideal;
+        end
+
+        // Simple slew-rate approximation: compress rapid dv/dt
+        real dv_req, dv_scale;
+        dv_req = ddt(v_int);
+        if (SR > 0) begin
+            if (abs(dv_req) > SR) dv_scale = SR / abs(dv_req); else dv_scale = 1.0;
+        end else dv_scale = 1.0;
+        real v_internal;
+        v_internal = transition(v_int, v_int, 0, 0) * dv_scale; // keep behavioral continuity
+
+        // Assign internal node voltage (behavioral source)
+        V(vo, ref) <+ v_internal;
+
+        // Dominant pole (capacitance to reference) if enabled
+        if (enable_pole != 0) begin
+            I(vo, ref) <+ Cp * ddt(V(vo, ref));
+        end
+
+        // Optional second pole: simple RC to a second internal node
+        if (enable_2poles != 0) begin
+            // connect vo to vo2 through Rout_eff and cap C2 to ref
+            I(vo2, ref) <+ C2 * ddt(V(vo2, ref));
+            I(vo2, vo) <+ V(vo2, vo) / Rout_eff;
+            // expose vo2 to output through Rout_eff
+            I(out, vo2) <+ V(out, vo2) / Rout_eff;
+        end else begin
+            // Series output resistance between internal node 'vo' and external 'out'
+            I(out, vo) <+ V(out, vo) / Rout_eff;
+        end
+
+        // Simple power estimate (not exported): P = Ibias*(Vdd-Vss)
+        // Placeholder: user can read Ibias and rails to compute power externally.
+
+        // Noise placeholders (simulator-specific noise primitives typically used here)
+        if (enable_noise != 0) begin
+            // Spectre/AMS noise primitives are simulator-specific; leave hooks here.
+            // Example (simulator-dependent): V(noise) <+ white_noise(k*Temp, "thermal");
+        end
+    end
+endmodule

@@ -1,0 +1,12 @@
+simulator lang=spectre
+include "../src/cs_amplifier.va"
+
+// Noise testbench placeholder: enable_noise parameter triggers noise hooks in the model
+v1 (in 0) ac 1
+
+xu1 (in out 0) cs_amplifier params: A=10 Rin=1e6 Rout=1e3 enable_noise=1 Ibias=10u
+
+// Spectre-specific noise analysis would be run here; template only
+noise noise1 dec 50 1 1e8
+save noise1 v(out)
+run noise1

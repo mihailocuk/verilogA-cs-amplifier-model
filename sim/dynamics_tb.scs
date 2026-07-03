@@ -1,0 +1,16 @@
+simulator lang=spectre
+include "../src/cs_amplifier.va"
+
+// Dynamics testbench: check pole and slew behavior
+v1 (in 0) pulse(0 0.5 0 1n 1n 10u 20u)
+
+// Instantiate amplifier with dominant pole and slew limit
+xu1 (in out 0) cs_amplifier params: A=20 Rin=1e6 Rout=1e3 enable_pole=1 Cp=2e-12 SR=1e7 enable_2poles=0
+
+tran tran1 100n 200u
+save tran1 v(out) v(in)
+run tran1
+
+ac ac1 dec 50 1 1e8
+save ac1 v(out) v(in)
+run ac1

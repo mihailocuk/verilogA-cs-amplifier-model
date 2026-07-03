@@ -1,0 +1,11 @@
+simulator lang=spectre
+include "../src/cs_amplifier.va"
+
+// Nonlinear testbench: large-signal drive to observe soft clipping
+v1 (in 0) sin(0 1.0 1k)
+
+xu1 (in out 0) cs_amplifier params: A=10 Rin=1e6 Rout=1e3 enable_tanh=1 vscale=0.2 Vdd=2.5 Vss=0
+
+tran tran1 1u 2m
+save tran1 v(out) v(in)
+run tran1
