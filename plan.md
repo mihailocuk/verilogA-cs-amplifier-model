@@ -182,3 +182,4 @@ Noise + power
 # 🧠 KLJUČNA IDEJA
 
 👉 svaki commit = jedan “fizički sloj realnosti”
+dddssdsds

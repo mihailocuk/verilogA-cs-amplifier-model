@@ -8,4 +8,4 @@ if ERRORLEVEL 1 (
     echo Spectre finished successfully.
 )
 pause
-xD xD
+sadsa
