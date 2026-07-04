@@ -1,0 +1,24 @@
+simulator lang=spectre
+include "../src/cs_amplifier.va"
+
+// Simple linear testbench for the cs_amplifier behavioral model
+
+// Voltage source: 100 mV amplitude, 1 kHz
+v1 (in 0) sin(0 0.1 1k)
+
+// Instantiate the behavioral amplifier: nodes (in out ref)
+xu1 (in out 0) cs_amplifier params: A=10 Rin=1e6 Rout=1e3
+
+// Transient analysis: 2 ms, step 1 us
+tran tran1 1u 2m
+save tran1 v(out) v(in)
+run tran1
+
+// AC analysis for small-signal response
+ac ac1 dec 20 10 1e7
+save ac1 v(out) v(in)
+run ac1
+
+// Operating point
+op op1
+run op1

@@ -1,0 +1,25 @@
+// Verilog-A: linear CS amplifier model for commit 1
+`timescale 1ns/1ps
+
+module cs_amplifier(in, out, ref);
+    inout in, out, ref;
+    electrical in, out, ref, vo;
+
+    parameter real A = 10.0 from [0:inf);   // ideal gain
+    parameter real Rin = 1e9 from (0:inf); // input resistance
+    parameter real Rout = 1e3 from (0:inf); // output resistance
+
+    analog begin
+        real vin;
+        vin = V(in, ref);
+
+        // Input loading
+        I(in, ref) <+ vin / Rin;
+
+        // Ideal gain stage
+        V(vo, ref) <+ A * vin;
+
+        // Output resistance as a series resistor to the external output
+        I(out, vo) <+ V(out, vo) / Rout;
+    end
+endmodule
