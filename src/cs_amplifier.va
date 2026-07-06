@@ -1,25 +1,47 @@
-// Verilog-A: linear CS amplifier model for commit 1
+// Verilog-A: common-source amplifier model with dynamic response
+`include "constants.vams"
+`include "disciplines.vams"
+
 `timescale 1ns/1ps
 
 module cs_amplifier(in, out, ref);
     inout in, out, ref;
-    electrical in, out, ref, vo;
+    electrical in, out, ref, int1, int2;
 
-    parameter real A = 10.0 from [0:inf);   // ideal gain
-    parameter real Rin = 1e9 from (0:inf); // input resistance
-    parameter real Rout = 1e3 from (0:inf); // output resistance
-
+    parameter real A = 10.0 from [0:inf);        // ideal gain
+    parameter real Rin = 1e9 from (0:inf);       // input resistance
+    parameter real Rout = 1e3 from (0:inf);      // output resistance
+    parameter real fp1 = 1e6 from (0:inf);       // dominant pole frequency
+    parameter real fp2 = 0.0 from [0:inf);       // optional second pole frequency
     analog begin
         real vin;
+        real vout_ideal;
+        real v_pole1;
+        real v_pole2;
+
         vin = V(in, ref);
 
         // Input loading
         I(in, ref) <+ vin / Rin;
 
-        // Ideal gain stage
-        V(vo, ref) <+ A * vin;
+        // Ideal gain stage before dynamic shaping
+        vout_ideal = -A * vin;
 
-        // Output resistance as a series resistor to the external output
-        I(out, vo) <+ V(out, vo) / Rout;
+        // First pole: dominant bandwidth limit
+        v_pole1 = laplace_nd(vout_ideal, {1}, {1, 1/(2.0*`M_PI*fp1)});
+
+        // Optional second pole for multi-pole bandwidth behavior
+        if (fp2 > 0.0) begin
+            v_pole2 = laplace_nd(v_pole1, {1}, {1, 1/(2.0*`M_PI*fp2)});
+        end else begin
+            v_pole2 = v_pole1;
+        end
+
+        // Expose the intermediate dynamic nodes for inspection/debugging
+        V(int1, ref) <+ v_pole1;
+        V(int2, ref) <+ v_pole2;
+
+        // Output resistance to the external output
+        I(out, int2) <+ V(out, int2) / Rout;
     end
 endmodule
