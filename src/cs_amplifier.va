@@ -1,4 +1,4 @@
-// Verilog-A: common-source amplifier model with dynamic response
+// Verilog-A: common-source small-signal amplifier model with dynamic response
 `include "constants.vams"
 `include "disciplines.vams"
 
